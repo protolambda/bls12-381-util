@@ -2,8 +2,6 @@ package blsu
 
 import (
 	"errors"
-	"fmt"
-
 	kbls "github.com/kilic/bls12-381"
 )
 
@@ -15,7 +13,7 @@ var domain = []byte("BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_")
 
 // cipher-suite: BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_
 // BLS_SIG_
-// BLS12381G2_XMD:SHA-256_SSWU_RO  # hash to curve suite
+// BLS12381G2_XMD:SHA-256_SSWU_RO  # hash to curve suite, G2, SHA-256
 // _
 // POP  # proof-of-possession scheme
 // _
@@ -120,8 +118,7 @@ func SkToPk(sk *SecretKey) (*Pubkey, error) {
 //	return false
 //}
 
-// The CoreSign algorithm computes a signature from SK, a secret key,
-//   and message, an octet string.
+// The CoreSign algorithm computes a signature from SK, a secret key, and message, an octet string.
 func CoreSign(sk *SecretKey, message []byte) (*Signature, error) {
 	g2 := kbls.NewG2()
 	// 1. Q = hash_to_point(message)
@@ -139,8 +136,7 @@ func CoreSign(sk *SecretKey, message []byte) (*Signature, error) {
 	return signature, nil
 }
 
-// The CoreVerify algorithm checks that a signature is valid for the
-//   octet string message under the public key PK.
+// The CoreVerify algorithm checks that a signature is valid for the octet string message under the public key PK.
 func CoreVerify(pk *Pubkey, message []byte, signature *Signature) bool {
 	// 1. R = signature_to_point(signature)
 	R := (*kbls.PointG2)(signature)
@@ -171,7 +167,7 @@ func CoreVerify(pk *Pubkey, message []byte, signature *Signature) bool {
 func Aggregate(signatures []*Signature) (*Signature, error) {
 	// Precondition: n >= 1, otherwise return INVALID.
 	if len(signatures) == 0 {
-		return nil, fmt.Errorf("need at least 1 signature")
+		return nil, errors.New("need at least 1 signature")
 	}
 
 	// 1. aggregate = signature_to_point(signature_1)
@@ -196,52 +192,171 @@ func Aggregate(signatures []*Signature) (*Signature, error) {
 	return signature, nil
 }
 
-// The CoreAggregateVerify algorithm checks an aggregated signature over
-//   several (PK, message) pairs.
-func CoreAggregateVerify(pubkeys []*Pubkey, messages [][]byte, signature *Signature) (bool, error) {
+// The CoreAggregateVerify algorithm checks an aggregated signature over several (PK, message) pairs.
+func CoreAggregateVerify(pubkeys []*Pubkey, messages [][]byte, signature *Signature) bool {
 	// Precondition: n >= 1, otherwise return INVALID.
+	n := uint64(len(messages))
+	if n == 0 {
+		return false
+	}
+	// implicit in spec: pubkeys and messages lengths must be equal
+	if uint64(len(pubkeys)) != n {
+		return false
+	}
 
 	// 1.  R = signature_to_point(signature)
+	R := (*kbls.PointG2)(signature)
 	// 2.  If R is INVALID, return INVALID
 	// 3.  If signature_subgroup_check(R) is INVALID, return INVALID
+	// 2 and 3 are part of the signature deserialization
+
+	g2 := kbls.NewG2()
+	engine := kbls.NewEngine()
 	// 4.  C1 = 1 (the identity element in GT)
 	// 5.  for i in 1, ..., n:
-	// 6.      If KeyValidate(PK_i) is INVALID, return INVALID
-	// 7.      xP = pubkey_to_point(PK_i)
-	// 8.      Q = hash_to_point(message_i)
-	// 9.      C1 = C1 * pairing(Q, xP)
+	for i := uint64(0); i < n; i++ {
+		// 6. If KeyValidate(PK_i) is INVALID, return INVALID
+		// part of the pubkey deserialization
+
+		// 7. xP = pubkey_to_point(PK_i)
+		xP := (*kbls.PointG1)(pubkeys[i])
+		// 8. Q = hash_to_point(message_i)
+		Q, err := g2.HashToCurve(messages[i], domain)
+		if err != nil {
+			// e.g. when the domain is too long. Maybe change to panic if never due to a usage error?
+			return false
+		}
+
+		// 9. C1 = C1 * pairing(Q, xP)
+		engine.AddPair(xP, Q)
+	}
 	// 10. C2 = pairing(R, P)
+	P := &kbls.G1One
+	engine.AddPairInv(P, R)
 	// 11. If C1 == C2, return VALID, else return INVALID
-	return false, nil
+	return engine.Check()
 }
 
-// basic scheme:
-//
-// This function first ensures that all messages are distinct, and then
-// invokes CoreAggregateVerify.
+// In the Proof Of Possession scheme
+// The Sign, Verify, and AggregateVerify functions are identical to CoreSign, CoreVerify, and CoreAggregateVerify (Section 2), respectively.
+
+// The AggregateVerify algorithm checks an aggregated signature over several (PK, message) pairs.
 func AggregateVerify(pubkeys []*Pubkey, messages [][]byte, signature *Signature) bool {
-	// Precondition: n >= 1, otherwise return INVALID.
-
-	// 1. If any two input messages are equal, return INVALID.
-	// 2. return CoreAggregateVerify((PK_1, ..., PK_n),
-	//                               (message_1, ..., message_n),
-	//                               signature)
-	return false
+	return CoreAggregateVerify(pubkeys, messages, signature)
 }
 
-// FastAggregateVerify, assuming proof of possession scheme.
+// The Verify algorithm checks an aggregated signature over several (PK, message) pairs.
+func Verify(pk *Pubkey, message []byte, signature *Signature) bool {
+	return CoreVerify(pk, message, signature)
+}
+
+// The Sign algorithm computes a signature from SK, a secret key, and message, an octet string.
+func Sign(sk *SecretKey, message []byte) (*Signature, error) {
+	return CoreSign(sk, message)
+}
+
+// TODO: do we need the basic-scheme version of AggregateVerify?
 //
-// a verification algorithm for the aggregate of multiple signatures on the same message.
+//// The AggregateVerify function first ensures that all messages are distinct, and then invokes CoreAggregateVerify.
+////
+//// This function only applies to the Basic signature scheme (Proof Of Possession uses CoreAggregateVerify directly)
+//func AggregateVerify(pubkeys []*Pubkey, messages [][]byte, signature *Signature) bool {
+//	// Precondition: n >= 1, otherwise return INVALID.
+//	n := uint64(len(messages))
+//	if n == 0 {
+//		return false
+//	}
+//
+//	// 1. If any two input messages are equal, return INVALID.
+//
+//	// Sort first, then check if any adjacent messages are equal to spot duplicates
+//	sorted := make([][]byte, len(messages), len(messages))
+//	copy(sorted, messages)
+//	sort.Slice(sorted, func(i, j int) bool {
+//		return bytes.Compare(sorted[i], sorted[j]) < 0
+//	})
+//	for i, j := uint64(0), uint64(1); j < n; i, j = i+1, j+1 {
+//		if bytes.Compare(sorted[i], sorted[j]) == 0 {
+//			return false
+//		}
+//	}
+//
+//	// 2. return CoreAggregateVerify((PK_1, ..., PK_n),
+//	//                               (message_1, ..., message_n),
+//	//                               signature)
+//	return CoreAggregateVerify(pubkeys, messages, signature)
+//}
+
+// FastAggregateVerify is a verification algorithm for the aggregate of multiple signatures on the same message.
 // This function is faster than AggregateVerify.
+//
+// This function applies only to the Proof Of Possession signature scheme.
 func FastAggregateVerify(pubkeys []*Pubkey, message []byte, signature *Signature) bool {
 	// Precondition: n >= 1, otherwise return INVALID.
+	n := uint64(len(pubkeys))
+	if n == 0 {
+		return false
+	}
 
+	g1 := kbls.NewG1()
 	// Procedure:
 	// 1. aggregate = pubkey_to_point(PK_1)
+	// copy the first pubkey
+	aggregate := *(*kbls.PointG1)(pubkeys[0])
 	// 2. for i in 2, ..., n:
-	// 3.     next = pubkey_to_point(PK_i)
-	// 4.     aggregate = aggregate + next
+	for i := uint64(0); i < n; i++ {
+		// 3. next = pubkey_to_point(PK_i)
+		next := (*kbls.PointG1)(pubkeys[i])
+		// 4. aggregate = aggregate + next
+		g1.Add(&aggregate, &aggregate, next)
+	}
 	// 5. PK = point_to_pubkey(aggregate)
+	PK := (*Pubkey)(&aggregate)
 	// 6. return CoreVerify(PK, message, signature)
-	return false
+	return CoreVerify(PK, message, signature)
+}
+
+// AggregatePubkeys is specified as `eth2_aggregate_pubkeys` in Eth2, and is the G1 variant of Aggregate in G2.
+func AggregatePubkeys(pubkeys []*Pubkey) (*Pubkey, error) {
+	// Precondition: n >= 1, otherwise return INVALID.
+	if len(pubkeys) == 0 {
+		return nil, errors.New("need at least 1 pubkey")
+	}
+
+	// 1. aggregate = pubkey_to_point(pubkey_1)
+	// make a copy of the first pubkey
+	aggregate := (kbls.PointG1)(*pubkeys[0])
+	// 2. If aggregate is INVALID, return INVALID
+	// part of the Pubkey deserialization
+
+	g1 := kbls.NewG1()
+	// 3. for i in 2, ..., n:
+	for i := 1; i < len(pubkeys); i++ {
+		// 4. next = pubkey_to_point(pubkey_i)
+		next := (*kbls.PointG1)(pubkeys[i])
+		// 5. If next is INVALID, return INVALID
+		// part of the Pubkey deserialization
+		// 6. aggregate = aggregate + next
+		g1.Add(&aggregate, &aggregate, next)
+	}
+	// 7. pubkey = point_to_pubkey(aggregate)
+	pubkey := (*Pubkey)(&aggregate)
+	// 8. return aggregated pubkey
+	return pubkey, nil
+}
+
+// Wrapper to FastAggregateVerify accepting the G2_POINT_AT_INFINITY signature when pubkeys is empty.
+func Eth2FastAggregateVerify(pubkeys []*Pubkey, message []byte, signature *Signature) bool {
+	// if len(pubkeys) == 0 and signature == G2_POINT_AT_INFINITY: return True
+
+	// G2_POINT_AT_INFINITY(serialized form is b'\xc0' + b'\x00' * 95, i.e. top 2 bits are one.
+	// most significant bit: to indicate it's compressed (if it were serialized)
+	// second most signficant bit: to indicate it is at infinity, the rest of the bits must be zero then.
+
+	// The IsZero method does not actually use the G2 scratchpad,
+	// so we call into this method with a nil-receiver to avoid unnecessary work.
+	if len(pubkeys) == 0 && (*kbls.G2)(nil).IsZero((*kbls.PointG2)(signature)) {
+		return true
+	}
+	return FastAggregateVerify(pubkeys, message, signature)
 }

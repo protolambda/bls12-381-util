@@ -5,7 +5,11 @@ BLS 12-381 util (BLSU, "bless you") is a collection of utils to work with BLS 12
 *Warning: these wrapper utils have not been audited.*
 
 This package wraps [`github.com/kilic/bls12-381`](https://github.com/kilic/bls12-381), 
-a pure Go implementation of BLS, no CGO involved, no special dependencies. ([audit info](https://github.com/kilic/bls12-381/issues/19))
+a pure Go implementation of BLS, no CGO involved, no special dependencies.
+Instead, this BLS implementation uses Go-assembly to optimize the lower level computions.
+[audit info](https://github.com/kilic/bls12-381/issues/19).
+
+This package implements the `BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_` ciphersuite.
 
 ## Utils
 
@@ -33,9 +37,9 @@ a pure Go implementation of BLS, no CGO involved, no special dependencies. ([aud
       - ~~PopVerify~~, not supported, assumed through application-specific implementation
       - `FastAggregateVerify`
 - Eth2 additions
-  - [`eth2_aggregate_pubkeys`](https://github.com/ethereum/eth2.0-specs/blob/dev/specs/altair/bls.md#eth2_aggregate_pubkeys)
-  - [`eth2_fast_aggregate_verify`](https://github.com/ethereum/eth2.0-specs/blob/dev/specs/altair/bls.md#eth2_fast_aggregate_verify)
-- [Signature sets](https://ethresear.ch/t/fast-verification-of-multiple-bls-signatures/5407) (verify non-singular set of signatures and its respective pubkeys and messages)
+  - [`eth2_aggregate_pubkeys`](https://github.com/ethereum/eth2.0-specs/blob/dev/specs/altair/bls.md#eth2_aggregate_pubkeys): `AggregatePubkeys`
+  - [`eth2_fast_aggregate_verify`](https://github.com/ethereum/eth2.0-specs/blob/dev/specs/altair/bls.md#eth2_fast_aggregate_verify): `Eth2FastAggregateVerify`
+- [Signature sets](https://ethresear.ch/t/fast-verification-of-multiple-bls-signatures/5407): verify non-singular set of signatures and its respective pubkeys and messages
 
 ## Testing
 

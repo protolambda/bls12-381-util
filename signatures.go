@@ -45,9 +45,12 @@ func (pub *Pubkey) Serialize() (out [48]byte) {
 	return
 }
 
-// Deserialize compressed point
+// Deserialize compressed point.
+// Performs deserialization, a subgroup check, but not a full KeyValidate: the identity pubkey is allowed.
+// Functions that are specified to perform a KeyValidate on a Pubkey can ignore it, after deserializing a valid *Pubkey,
+// EXCEPT the identity pubkey check.
 func (pub *Pubkey) Deserialize(in *[48]byte) error {
-	// includes sub-group check
+	// includes sub-group check (TODO: is this check correct and complete though?)
 	p, err := kbls.NewG1().FromCompressed(in[:])
 	if err != nil {
 		return err
@@ -86,8 +89,13 @@ func (sk *SecretKey) Serialize() (out [32]byte) {
 }
 
 // Deserialize big-endian serialized integer. A modulo r is applied to out-of-range keys.
-func (sk *SecretKey) Deserialize(in *[32]byte) {
+func (sk *SecretKey) Deserialize(in *[32]byte) error {
 	(*kbls.Fr)(sk).FromBytes(in[:])
+	// KeyGen states: a uniformly random integer such that 1 <= SK < r.
+	if ((*kbls.Fr)(sk)).IsZero() {
+		return errors.New("secret key may not be zero")
+	}
+	return nil
 }
 
 // The SkToPk algorithm takes a secret key SK and outputs the corresponding public key PK.
@@ -122,12 +130,13 @@ func SkToPk(sk *SecretKey) (*Pubkey, error) {
 //}
 
 // The coreSign algorithm computes a signature from SK, a secret key, and message, an octet string.
-func coreSign(sk *SecretKey, message []byte) (*Signature, error) {
+func coreSign(sk *SecretKey, message []byte) *Signature {
 	g2 := kbls.NewG2()
 	// 1. Q = hash_to_point(message)
 	Q, err := g2.HashToCurve(message, domain)
 	if err != nil {
-		return nil, err
+		// only when the domain is too long, which we know it is not
+		panic(err)
 	}
 	// 2. R = SK * Q
 	var R kbls.PointG2
@@ -136,11 +145,16 @@ func coreSign(sk *SecretKey, message []byte) (*Signature, error) {
 	// serialization is deferred, see Signature.Serialize()
 	signature := (*Signature)(&R)
 	// 4. return signature
-	return signature, nil
+	return signature
 }
 
 // The coreVerify algorithm checks that a signature is valid for the octet string message under the public key PK.
 func coreVerify(pk *Pubkey, message []byte, signature *Signature) bool {
+	if (*kbls.G2)(nil).IsZero((*kbls.PointG2)(signature)) {
+		// TODO: the 0xc000... pubkey 0xc000... combination is denied in a test case,
+		// but spec is unclear about this case
+		return false
+	}
 	// 1. R = signature_to_point(signature)
 	R := (*kbls.PointG2)(signature)
 	// 2. If R is INVALID, return INVALID
@@ -219,10 +233,15 @@ func coreAggregateVerify(pubkeys []*Pubkey, messages [][]byte, signature *Signat
 	// 5.  for i in 1, ..., n:
 	for i := uint64(0); i < n; i++ {
 		// 6. If KeyValidate(PK_i) is INVALID, return INVALID
-		// part of the pubkey deserialization
+		// part of the pubkey deserialization, except that the spec considers the identity pubkey to fail the KeyValidate,
+		// while valid in *Pubkey deserialization. Identity-pubkey check below.
 
 		// 7. xP = pubkey_to_point(PK_i)
 		xP := (*kbls.PointG1)(pubkeys[i])
+		// check identity pubkey
+		if (*kbls.G1)(nil).IsZero(xP) {
+			return false
+		}
 		// 8. Q = hash_to_point(message_i)
 		Q, err := g2.HashToCurve(messages[i], domain)
 		if err != nil {
@@ -254,7 +273,7 @@ func Verify(pk *Pubkey, message []byte, signature *Signature) bool {
 }
 
 // The Sign algorithm computes a signature from SK, a secret key, and message, an octet string.
-func Sign(sk *SecretKey, message []byte) (*Signature, error) {
+func Sign(sk *SecretKey, message []byte) *Signature {
 	return coreSign(sk, message)
 }
 
@@ -310,6 +329,10 @@ func FastAggregateVerify(pubkeys []*Pubkey, message []byte, signature *Signature
 	for i := uint64(0); i < n; i++ {
 		// 3. next = pubkey_to_point(PK_i)
 		next := (*kbls.PointG1)(pubkeys[i])
+		// check identity pubkey
+		if (*kbls.G1)(nil).IsZero(next) {
+			return false
+		}
 		// 4. aggregate = aggregate + next
 		g1.Add(&aggregate, &aggregate, next)
 	}

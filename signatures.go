@@ -90,8 +90,7 @@ func (sk *SecretKey) Deserialize(in *[32]byte) {
 	(*kbls.Fr)(sk).FromBytes(in[:])
 }
 
-// The SkToPk algorithm takes a secret key SK and outputs the
-// corresponding public key PK.  Section 2.3 discusses requirements for SK.
+// The SkToPk algorithm takes a secret key SK and outputs the corresponding public key PK.
 func SkToPk(sk *SecretKey) (*Pubkey, error) {
 	// a secret integer such that 1 <= SK < r.
 	if ((*kbls.Fr)(sk)).IsZero() {
@@ -99,9 +98,13 @@ func SkToPk(sk *SecretKey) (*Pubkey, error) {
 	}
 
 	// 1. xP = SK * P
+	var xP kbls.PointG1
+	g1 := kbls.NewG1()
+	g1.MulScalar(&xP, &kbls.G1One, (*kbls.Fr)(sk))
 	// 2. PK = point_to_pubkey(xP)
+	PK := (*Pubkey)(&xP)
 	// 3. return PK
-	return nil, nil
+	return PK, nil
 }
 
 // TODO: unsupported, should be part of bytes->Pubkey deserialization
@@ -118,8 +121,8 @@ func SkToPk(sk *SecretKey) (*Pubkey, error) {
 //	return false
 //}
 
-// The CoreSign algorithm computes a signature from SK, a secret key, and message, an octet string.
-func CoreSign(sk *SecretKey, message []byte) (*Signature, error) {
+// The coreSign algorithm computes a signature from SK, a secret key, and message, an octet string.
+func coreSign(sk *SecretKey, message []byte) (*Signature, error) {
 	g2 := kbls.NewG2()
 	// 1. Q = hash_to_point(message)
 	Q, err := g2.HashToCurve(message, domain)
@@ -136,8 +139,8 @@ func CoreSign(sk *SecretKey, message []byte) (*Signature, error) {
 	return signature, nil
 }
 
-// The CoreVerify algorithm checks that a signature is valid for the octet string message under the public key PK.
-func CoreVerify(pk *Pubkey, message []byte, signature *Signature) bool {
+// The coreVerify algorithm checks that a signature is valid for the octet string message under the public key PK.
+func coreVerify(pk *Pubkey, message []byte, signature *Signature) bool {
 	// 1. R = signature_to_point(signature)
 	R := (*kbls.PointG2)(signature)
 	// 2. If R is INVALID, return INVALID
@@ -192,8 +195,8 @@ func Aggregate(signatures []*Signature) (*Signature, error) {
 	return signature, nil
 }
 
-// The CoreAggregateVerify algorithm checks an aggregated signature over several (PK, message) pairs.
-func CoreAggregateVerify(pubkeys []*Pubkey, messages [][]byte, signature *Signature) bool {
+// The coreAggregateVerify algorithm checks an aggregated signature over several (PK, message) pairs.
+func coreAggregateVerify(pubkeys []*Pubkey, messages [][]byte, signature *Signature) bool {
 	// Precondition: n >= 1, otherwise return INVALID.
 	n := uint64(len(messages))
 	if n == 0 {
@@ -238,28 +241,28 @@ func CoreAggregateVerify(pubkeys []*Pubkey, messages [][]byte, signature *Signat
 }
 
 // In the Proof Of Possession scheme
-// The Sign, Verify, and AggregateVerify functions are identical to CoreSign, CoreVerify, and CoreAggregateVerify (Section 2), respectively.
+// The Sign, Verify, and AggregateVerify functions are identical to coreSign, coreVerify, and coreAggregateVerify (Section 2), respectively.
 
 // The AggregateVerify algorithm checks an aggregated signature over several (PK, message) pairs.
 func AggregateVerify(pubkeys []*Pubkey, messages [][]byte, signature *Signature) bool {
-	return CoreAggregateVerify(pubkeys, messages, signature)
+	return coreAggregateVerify(pubkeys, messages, signature)
 }
 
 // The Verify algorithm checks an aggregated signature over several (PK, message) pairs.
 func Verify(pk *Pubkey, message []byte, signature *Signature) bool {
-	return CoreVerify(pk, message, signature)
+	return coreVerify(pk, message, signature)
 }
 
 // The Sign algorithm computes a signature from SK, a secret key, and message, an octet string.
 func Sign(sk *SecretKey, message []byte) (*Signature, error) {
-	return CoreSign(sk, message)
+	return coreSign(sk, message)
 }
 
 // TODO: do we need the basic-scheme version of AggregateVerify?
 //
-//// The AggregateVerify function first ensures that all messages are distinct, and then invokes CoreAggregateVerify.
+//// The AggregateVerify function first ensures that all messages are distinct, and then invokes coreAggregateVerify.
 ////
-//// This function only applies to the Basic signature scheme (Proof Of Possession uses CoreAggregateVerify directly)
+//// This function only applies to the Basic signature scheme (Proof Of Possession uses coreAggregateVerify directly)
 //func AggregateVerify(pubkeys []*Pubkey, messages [][]byte, signature *Signature) bool {
 //	// Precondition: n >= 1, otherwise return INVALID.
 //	n := uint64(len(messages))
@@ -281,10 +284,10 @@ func Sign(sk *SecretKey, message []byte) (*Signature, error) {
 //		}
 //	}
 //
-//	// 2. return CoreAggregateVerify((PK_1, ..., PK_n),
+//	// 2. return coreAggregateVerify((PK_1, ..., PK_n),
 //	//                               (message_1, ..., message_n),
 //	//                               signature)
-//	return CoreAggregateVerify(pubkeys, messages, signature)
+//	return coreAggregateVerify(pubkeys, messages, signature)
 //}
 
 // FastAggregateVerify is a verification algorithm for the aggregate of multiple signatures on the same message.
@@ -312,8 +315,8 @@ func FastAggregateVerify(pubkeys []*Pubkey, message []byte, signature *Signature
 	}
 	// 5. PK = point_to_pubkey(aggregate)
 	PK := (*Pubkey)(&aggregate)
-	// 6. return CoreVerify(PK, message, signature)
-	return CoreVerify(PK, message, signature)
+	// 6. return coreVerify(PK, message, signature)
+	return coreVerify(PK, message, signature)
 }
 
 // AggregatePubkeys is specified as `eth2_aggregate_pubkeys` in Eth2, and is the G1 variant of Aggregate in G2.

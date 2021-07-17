@@ -6,7 +6,7 @@ BLS 12-381 util (BLSU, "bless you") is a collection of utils to work with BLS 12
 
 This package wraps [`github.com/kilic/bls12-381`](https://github.com/kilic/bls12-381), 
 a pure Go implementation of BLS, no CGO involved, no special dependencies.
-Instead, this BLS implementation uses Go-assembly to optimize the lower level computions.
+Instead, this BLS implementation uses Go-assembly to optimize the lower level computations.
 [audit info](https://github.com/kilic/bls12-381/issues/19).
 
 This package implements the `BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_` ciphersuite.
@@ -23,7 +23,7 @@ This package implements the `BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_` cipher
     256_SSWU_RO_`, `BLS12381G2_XMD:SHA-256_SSWU_RO_`
   - Schemes:
     - Core operations:
-      - `KeyGen`
+      - `KeyGen` (TODO)
       - `SkToPk`
       - ~~`KeyValidate`~~, implemented as part of Pubkey deserialization
       - `CoreSign`

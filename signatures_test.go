@@ -291,9 +291,8 @@ func (v *hexStr) UnmarshalText(text []byte) error {
 	}
 	l := hex.DecodedLen(len(text))
 	dat := make([]byte, l, l)
-	n, err := hex.Decode(dat, text)
+	_, err := hex.Decode(dat, text)
 	*v = dat
-	fmt.Println("n", n)
 	return err
 }
 

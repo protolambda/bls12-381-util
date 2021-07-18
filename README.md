@@ -40,13 +40,29 @@ This package implements the `BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_` cipher
   - [`eth2_aggregate_pubkeys`](https://github.com/ethereum/eth2.0-specs/blob/dev/specs/altair/bls.md#eth2_aggregate_pubkeys): `AggregatePubkeys`
   - [`eth2_fast_aggregate_verify`](https://github.com/ethereum/eth2.0-specs/blob/dev/specs/altair/bls.md#eth2_fast_aggregate_verify): `Eth2FastAggregateVerify`
 - [Signature sets](https://ethresear.ch/t/fast-verification-of-multiple-bls-signatures/5407): verify non-singular set of signatures and its respective pubkeys and messages
+  - TODO
 
 ## Testing
 
-- TODO: Unit tests
-- TODO: Eth2 BLS tests
-- TODO: Eth2 spec tests
-- TODO: standard tests (if any)
+- Unit tests
+  - [ ] `SecretKey` deserialization/serialization
+  - [ ] `Pubkey` deserialization/serialization (with KeyValidate routine, except identity-pubkey check)
+  - [ ] `Signature` deserialization/serialization
+  - [x] `SkToPk` (TODO: expand)
+  - [ ] `SignatureSet`
+- Eth2 BLS tests
+  - [x] `Sign`
+  - [x] `Aggregate`
+  - [x] `Verify`
+  - [x] `AggregateVerify`
+  - [x] `FastAggregateVerify`
+  - [ ] `AggregatePubkeys`
+  - [ ] `Eth2FastAggregateVerify`
+- Eth2 spec tests
+  - [ ] Integrate into ZRNT, run full eth2 test-suite
+- standard tests (if any)
+  - [ ] TODO, need standard signature-scheme test vectors
+  - [ ] Run Hash-to-curve test-vectors on `kilic/bls12-381` internals
 
 ## License
 

@@ -19,13 +19,13 @@ This package implements the `BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_` cipher
   - Secret keys: `Fr` wrapper
   - Signatures sets: see below
 - [Draft 4](https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-bls-signature-04) for signatures
-  - Hash to curve, from `kilic/bls12-381`: `BLS12381G1_XMD:SHA-
-    256_SSWU_RO_`, `BLS12381G2_XMD:SHA-256_SSWU_RO_`
+  - Hash to curve, from `kilic/bls12-381`: `BLS12381G2_XMD:SHA-256_SSWU_RO_`
   - Schemes:
     - Core operations:
       - `KeyGen` (TODO)
       - `SkToPk`
-      - ~~`KeyValidate`~~, implemented as part of Pubkey deserialization
+      - ~~`KeyValidate`~~, implemented as part of Pubkey deserialization,
+        except identity-pubkey check (checked in verify functions instead).
       - `CoreSign`
       - `CoreVerify`
       - `Aggregate`

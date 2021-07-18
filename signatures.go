@@ -150,17 +150,17 @@ func coreSign(sk *SecretKey, message []byte) *Signature {
 
 // The coreVerify algorithm checks that a signature is valid for the octet string message under the public key PK.
 func coreVerify(pk *Pubkey, message []byte, signature *Signature) bool {
-	if (*kbls.G2)(nil).IsZero((*kbls.PointG2)(signature)) {
-		// TODO: the 0xc000... pubkey 0xc000... combination is denied in a test case,
-		// but spec is unclear about this case
-		return false
-	}
 	// 1. R = signature_to_point(signature)
 	R := (*kbls.PointG2)(signature)
 	// 2. If R is INVALID, return INVALID
 	// 3. If signature_subgroup_check(R) is INVALID, return INVALID
 	// 4. If KeyValidate(PK) is INVALID, return INVALID
 	// steps 2-4 are part of bytes -> *Signature deserialization
+	if (*kbls.G2)(nil).IsZero(R) {
+		// KeyValidate is assumed through deserialization of Pubkey and Signature,
+		// but the identity pubkey/signature case is not part of that, thus verify here.
+		return false
+	}
 
 	// 5. xP = pubkey_to_point(PK)
 	xP := (*kbls.PointG1)(pk)

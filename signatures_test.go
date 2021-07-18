@@ -12,27 +12,27 @@ import (
 )
 
 func TestSecretKey_Deserialize(t *testing.T) {
-	// TODO
+	// TODO TestSecretKey_Deserialize
 }
 
 func TestSecretKey_Serialize(t *testing.T) {
-	// TODO
+	// TODO TestSecretKey_Serialize
 }
 
 func TestPubkey_Deserialize(t *testing.T) {
-	// TODO
+	// TODO TestPubkey_Deserialize
 }
 
 func TestPubkey_Serialize(t *testing.T) {
-	// TODO
+	// TODO TestPubkey_Serialize
 }
 
 func TestSignature_Deserialize(t *testing.T) {
-	// TODO
+	// TODO TestSignature_Deserialize
 }
 
 func TestSignature_Serialize(t *testing.T) {
-	// TODO
+	// TODO TestSignature_Serialize
 }
 
 func hex32(v string) (out [32]byte) {
@@ -133,7 +133,7 @@ func TestAggregate(t *testing.T) {
 }
 
 func TestAggregatePubkeys(t *testing.T) {
-	// TODO
+	// TODO TestAggregatePubkeys
 }
 
 type verifyTestCase struct {
@@ -280,7 +280,7 @@ func TestFastAggregateVerify(t *testing.T) {
 }
 
 func TestEth2FastAggregateVerify(t *testing.T) {
-	// TODO
+	// TODO TestEth2FastAggregateVerify
 }
 
 type hexStr []byte

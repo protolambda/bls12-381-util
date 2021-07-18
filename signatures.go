@@ -326,7 +326,7 @@ func FastAggregateVerify(pubkeys []*Pubkey, message []byte, signature *Signature
 	// copy the first pubkey
 	aggregate := *(*kbls.PointG1)(pubkeys[0])
 	// 2. for i in 2, ..., n:
-	for i := uint64(0); i < n; i++ {
+	for i := uint64(1); i < n; i++ {
 		// 3. next = pubkey_to_point(PK_i)
 		next := (*kbls.PointG1)(pubkeys[i])
 		// check identity pubkey

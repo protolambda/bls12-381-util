@@ -178,25 +178,33 @@ type aggregateVerifyTestCase struct {
 	Input struct {
 		Pubkeys   []hexStr48 `yaml:"pubkeys"`
 		Messages  []hexStr32 `yaml:"messages"`
-		Signature hexStr     `yaml:"signature"` // the signature to verify against pubkeys and messages
+		Signature hexStr     `yaml:"signature"`
 	}
 	Output bool `yaml:"output"` // VALID or INVALID
+}
+
+func parsePubkeys(input []hexStr48) (pubkeys []*Pubkey, err error) {
+	pubkeys = make([]*Pubkey, len(input), len(input))
+	for i, pub := range input {
+		pubkeys[i] = new(Pubkey)
+		if err := pubkeys[i].Deserialize((*[48]byte)(&pub)); err != nil {
+			return nil, fmt.Errorf("failed to deserialize pubkey %d (%x): %v", i, pub[:], err)
+		}
+	}
+	return pubkeys, nil
 }
 
 func TestAggregateVerify(t *testing.T) {
 	runTestCases(t, "aggregate_verify/small", func(t *testing.T, getData func(interface{})) {
 		var data aggregateVerifyTestCase
 		getData(&data)
-		pubkeys := make([]*Pubkey, len(data.Input.Pubkeys), len(data.Input.Pubkeys))
-		for i, pub := range data.Input.Pubkeys {
-			pubkeys[i] = new(Pubkey)
-			if err := pubkeys[i].Deserialize((*[48]byte)(&pub)); err != nil {
-				if !data.Output {
-					// expected failure
-					return
-				} else {
-					t.Fatalf("unexpected failure, failed to deserialize pubkey %d (%x): %v", i, pub[:], err)
-				}
+		pubkeys, err := parsePubkeys(data.Input.Pubkeys)
+		if err != nil {
+			if !data.Output {
+				// expected failure
+				return
+			} else {
+				t.Fatalf("unexpected failure: %v", err)
 			}
 		}
 		messages := make([][]byte, len(data.Input.Messages), len(data.Input.Messages))
@@ -232,8 +240,43 @@ func TestAggregateVerify(t *testing.T) {
 	})
 }
 
+type fastAggregateVerifyTestCase struct {
+	Input struct {
+		Pubkeys   []hexStr48 `yaml:"pubkeys"`
+		Message   hexStr32   `yaml:"message"`
+		Signature hexStr96   `yaml:"signature"`
+	}
+	Output bool `yaml:"output"` // VALID or INVALID
+}
+
 func TestFastAggregateVerify(t *testing.T) {
-	// TODO
+	runTestCases(t, "fast_aggregate_verify/small", func(t *testing.T, getData func(interface{})) {
+		var data fastAggregateVerifyTestCase
+		getData(&data)
+		pubkeys, err := parsePubkeys(data.Input.Pubkeys)
+		if err != nil {
+			if !data.Output {
+				// expected failure
+				return
+			} else {
+				t.Fatalf("unexpected failure: %v", err)
+			}
+		}
+		message := data.Input.Message[:]
+		var sig Signature
+		if err := sig.Deserialize((*[96]byte)(&data.Input.Signature)); err != nil {
+			if !data.Output {
+				// expected failure
+				return
+			} else {
+				t.Fatalf("unexpected failure, failed to deserialize signature (%x): %v", data.Input.Signature[:], err)
+			}
+		}
+		res := FastAggregateVerify(pubkeys, message, &sig)
+		if res != data.Output {
+			t.Fatalf("expected different output, got %v, expected %v", res, data.Output)
+		}
+	})
 }
 
 func TestEth2FastAggregateVerify(t *testing.T) {

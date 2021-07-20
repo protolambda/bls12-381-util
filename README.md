@@ -11,6 +11,8 @@ Instead, this BLS implementation uses Go-assembly to optimize the lower level co
 
 This package implements the `BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_` ciphersuite.
 
+TODO: **not safe for 32 bit usage**: kilic BLS Fr.FromBytes->Fr.fromBytes->Fr.fromBig assumes word size is 64 bits.
+
 ## Utils
 
 - Eth2 Typing
@@ -40,7 +42,6 @@ This package implements the `BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_` cipher
   - [`eth2_aggregate_pubkeys`](https://github.com/ethereum/eth2.0-specs/blob/dev/specs/altair/bls.md#eth2_aggregate_pubkeys): `AggregatePubkeys`
   - [`eth2_fast_aggregate_verify`](https://github.com/ethereum/eth2.0-specs/blob/dev/specs/altair/bls.md#eth2_fast_aggregate_verify): `Eth2FastAggregateVerify`
 - [Signature sets](https://ethresear.ch/t/fast-verification-of-multiple-bls-signatures/5407): verify non-singular set of signatures and its respective pubkeys and messages
-  - TODO
 
 ## Testing
 
@@ -49,7 +50,7 @@ This package implements the `BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_` cipher
   - [ ] `Pubkey` deserialization/serialization (with KeyValidate routine, except identity-pubkey check)
   - [ ] `Signature` deserialization/serialization
   - [x] `SkToPk` (TODO: expand)
-  - [ ] `SignatureSet`
+  - [x] `SignatureSetVerify`
 - Eth2 BLS tests
   - [x] `Sign`
   - [x] `Aggregate`

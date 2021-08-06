@@ -47,8 +47,8 @@ TODO: **not safe for 32 bit usage**: kilic BLS Fr.FromBytes->Fr.fromBytes->Fr.fr
 
 - Unit tests
   - [ ] `SecretKey` deserialization/serialization
-  - [ ] `Pubkey` deserialization/serialization (with KeyValidate routine, except identity-pubkey check)
-  - [ ] `Signature` deserialization/serialization
+  - [x] `Pubkey` deserialization/serialization (with KeyValidate routine, except identity-pubkey check)
+  - [x] `Signature` deserialization/serialization
   - [x] `SkToPk` (TODO: expand)
   - [x] `SignatureSetVerify`
 - Eth2 BLS tests
@@ -60,10 +60,10 @@ TODO: **not safe for 32 bit usage**: kilic BLS Fr.FromBytes->Fr.fromBytes->Fr.fr
   - [ ] `AggregatePubkeys`
   - [ ] `Eth2FastAggregateVerify`
 - Eth2 spec tests
-  - [ ] Integrate into ZRNT, run full eth2 test-suite
+  - [x] Integrate into ZRNT, run full eth2 test-suite
 - standard tests (if any)
-  - [ ] TODO, need standard signature-scheme test vectors
-  - [ ] Run Hash-to-curve test-vectors on `kilic/bls12-381` internals
+  - [ ] TODO, need standard signature-scheme test vectors (Work in progress)
+  - [x] Run Hash-to-curve test-vectors on `kilic/bls12-381` internals
 
 ## License
 

@@ -3,13 +3,68 @@ package blsu
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
-	"gopkg.in/yaml.v3"
+	kbls "github.com/kilic/bls12-381"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+type hashToG2TestCase struct {
+	Input struct {
+		Msg string `json:"msg"`
+	} `json:"input"`
+	Output struct {
+		X string `json:"x"`
+		Y string `json:"y"`
+	} `json:"output"`
+}
+
+const fpByteSize = 48
+
+func TestHashToG2(t *testing.T) {
+	runTestCases(t, "hash_to_G2", func(t *testing.T, getData func(interface{})) {
+		var data hashToG2TestCase
+		getData(&data)
+		g2 := kbls.NewG2()
+		dom := []byte("QUUX-V01-CS02-with-BLS12381G2_XMD:SHA-256_SSWU_RO_")
+		out, err := g2.HashToCurve([]byte(data.Input.Msg), dom)
+		if err != nil {
+			t.Fatal(err)
+		}
+		g2.Affine(out)
+		uncompressed := g2.ToUncompressed(out)
+		x := strings.Split(data.Output.X, ",")
+		y := strings.Split(data.Output.Y, ",")
+		must := func(err error) {
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		var x1, x2, y1, y2 hexStr
+		must(x1.UnmarshalText([]byte(x[0])))
+		must(x2.UnmarshalText([]byte(x[1])))
+		must(y1.UnmarshalText([]byte(y[0])))
+		must(y2.UnmarshalText([]byte(y[1])))
+
+		if !bytes.Equal(uncompressed[:fpByteSize], x2) {
+			t.Errorf("X1: got %x but expected %x", uncompressed[:fpByteSize], x2)
+		}
+		if !bytes.Equal(uncompressed[fpByteSize:fpByteSize*2], x1) {
+			t.Errorf("X2: got %x but expected %x", uncompressed[fpByteSize:fpByteSize*2], x1)
+		}
+
+		if !bytes.Equal(uncompressed[fpByteSize*2:fpByteSize*3], y2) {
+			t.Errorf("Y1: got %x but expected %x", uncompressed[fpByteSize*2:fpByteSize*3], y2)
+		}
+		if !bytes.Equal(uncompressed[fpByteSize*3:], y1) {
+			t.Errorf("Y2: got %x but expected %x", uncompressed[fpByteSize*3:], y1)
+		}
+	})
+}
 
 func TestSecretKey_Deserialize(t *testing.T) {
 	// TODO TestSecretKey_Deserialize
@@ -19,20 +74,88 @@ func TestSecretKey_Serialize(t *testing.T) {
 	// TODO TestSecretKey_Serialize
 }
 
-func TestPubkey_Deserialize(t *testing.T) {
-	// TODO TestPubkey_Deserialize
+type deserializationG1TestCase struct {
+	Input struct {
+		Pubkey hexStr `json:"pubkey"`
+	} `json:"input"`
+	Output bool `json:"output"`
 }
 
-func TestPubkey_Serialize(t *testing.T) {
-	// TODO TestPubkey_Serialize
+func TestPubkey_Deserialize(t *testing.T) {
+	runTestCases(t, "deserialization_G1", func(t *testing.T, getData func(interface{})) {
+		var data deserializationG1TestCase
+		getData(&data)
+		// length is included in typing here, just invalid input
+		if len(data.Input.Pubkey) != 48 {
+			return
+		}
+		var pubRaw [48]byte
+		copy(pubRaw[:], data.Input.Pubkey)
+		var pub Pubkey
+		err := pub.Deserialize(&pubRaw)
+		if err != nil {
+			if data.Output {
+				t.Fatalf("unexpected deserialization error: %v", err)
+			} else {
+				// expected
+				return
+			}
+		} else {
+			if data.Output {
+				// expected success. Now try serialize it back
+				t.Run("serialize", func(t *testing.T) {
+					out := pub.Serialize()
+					if !bytes.Equal(out[:], data.Input.Pubkey) {
+						t.Fatalf("expected different serialized result:\n%x\n%x", out[:], data.Input.Pubkey)
+					}
+				})
+			} else {
+				t.Fatalf("expected deserialization to fail, but got: %v", &pub)
+			}
+		}
+	})
+}
+
+type deserializationG2TestCase struct {
+	Input struct {
+		Signature hexStr `json:"signature"`
+	} `json:"input"`
+	Output bool `json:"output"`
 }
 
 func TestSignature_Deserialize(t *testing.T) {
-	// TODO TestSignature_Deserialize
-}
-
-func TestSignature_Serialize(t *testing.T) {
-	// TODO TestSignature_Serialize
+	runTestCases(t, "deserialization_G2", func(t *testing.T, getData func(interface{})) {
+		var data deserializationG2TestCase
+		getData(&data)
+		// length is included in typing here, just invalid input
+		if len(data.Input.Signature) != 96 {
+			return
+		}
+		var sigRaw [96]byte
+		copy(sigRaw[:], data.Input.Signature)
+		var sig Signature
+		err := sig.Deserialize(&sigRaw)
+		if err != nil {
+			if data.Output {
+				t.Fatalf("unexpected deserialization error: %v", err)
+			} else {
+				// expected
+				return
+			}
+		} else {
+			if data.Output {
+				// expected success. Now try serialize it back
+				t.Run("serialize", func(t *testing.T) {
+					out := sig.Serialize()
+					if !bytes.Equal(out[:], data.Input.Signature) {
+						t.Fatalf("expected different serialized result:\n%x\n%x", out[:], data.Input.Signature)
+					}
+				})
+			} else {
+				t.Fatalf("expected deserialization to fail, but got: %v", &sig)
+			}
+		}
+	})
 }
 
 func hex32(v string) (out [32]byte) {
@@ -65,14 +188,14 @@ func TestSkToPk(t *testing.T) {
 
 type signTestCase struct {
 	Input struct {
-		Privkey hexStr32 `yaml:"privkey"`
-		Message hexStr   `yaml:"message"`
+		Privkey hexStr32 `yaml,json:"privkey"`
+		Message hexStr   `yaml,json:"message"`
 	}
-	Output hexStr `yaml:"output"`
+	Output hexStr `yaml,json:"output"`
 }
 
 func TestSign(t *testing.T) {
-	runTestCases(t, "sign/small", func(t *testing.T, getData func(interface{})) {
+	runTestCases(t, "sign", func(t *testing.T, getData func(interface{})) {
 		var data signTestCase
 		getData(&data)
 		var sk SecretKey
@@ -95,12 +218,12 @@ func TestSign(t *testing.T) {
 }
 
 type aggregateTestCase struct {
-	Input  []hexStr96 `yaml:"input"`
-	Output *hexStr96  `yaml:"output"`
+	Input  []hexStr96 `yaml,json:"input"`
+	Output *hexStr96  `yaml,json:"output"`
 }
 
 func TestAggregate(t *testing.T) {
-	runTestCases(t, "aggregate/small", func(t *testing.T, getData func(interface{})) {
+	runTestCases(t, "aggregate", func(t *testing.T, getData func(interface{})) {
 		var data aggregateTestCase
 		getData(&data)
 		inputs := make([]*Signature, len(data.Input), len(data.Input))
@@ -138,15 +261,15 @@ func TestAggregatePubkeys(t *testing.T) {
 
 type verifyTestCase struct {
 	Input struct {
-		Pubkey    hexStr48 `yaml:"pubkey"`
-		Message   hexStr32 `yaml:"message"`
-		Signature hexStr96 `yaml:"signature"` // the signature to verify against pubkey and message
+		Pubkey    hexStr48 `yaml,json:"pubkey"`
+		Message   hexStr32 `yaml,json:"message"`
+		Signature hexStr96 `yaml,json:"signature"` // the signature to verify against pubkey and message
 	}
-	Output bool `yaml:"output"` // VALID or INVALID
+	Output bool `yaml,json:"output"` // VALID or INVALID
 }
 
 func TestVerify(t *testing.T) {
-	runTestCases(t, "verify/small", func(t *testing.T, getData func(interface{})) {
+	runTestCases(t, "verify", func(t *testing.T, getData func(interface{})) {
 		var data verifyTestCase
 		getData(&data)
 		var pub Pubkey
@@ -176,11 +299,11 @@ func TestVerify(t *testing.T) {
 
 type aggregateVerifyTestCase struct {
 	Input struct {
-		Pubkeys   []hexStr48 `yaml:"pubkeys"`
-		Messages  []hexStr32 `yaml:"messages"`
-		Signature hexStr     `yaml:"signature"`
+		Pubkeys   []hexStr48 `yaml,json:"pubkeys"`
+		Messages  []hexStr32 `yaml,json:"messages"`
+		Signature hexStr     `yaml,json:"signature"`
 	}
-	Output bool `yaml:"output"` // VALID or INVALID
+	Output bool `yaml,json:"output"` // VALID or INVALID
 }
 
 func parsePubkeys(input []hexStr48) (pubkeys []*Pubkey, err error) {
@@ -195,7 +318,7 @@ func parsePubkeys(input []hexStr48) (pubkeys []*Pubkey, err error) {
 }
 
 func TestAggregateVerify(t *testing.T) {
-	runTestCases(t, "aggregate_verify/small", func(t *testing.T, getData func(interface{})) {
+	runTestCases(t, "aggregate_verify", func(t *testing.T, getData func(interface{})) {
 		var data aggregateVerifyTestCase
 		getData(&data)
 		pubkeys, err := parsePubkeys(data.Input.Pubkeys)
@@ -242,15 +365,15 @@ func TestAggregateVerify(t *testing.T) {
 
 type fastAggregateVerifyTestCase struct {
 	Input struct {
-		Pubkeys   []hexStr48 `yaml:"pubkeys"`
-		Message   hexStr32   `yaml:"message"`
-		Signature hexStr96   `yaml:"signature"`
+		Pubkeys   []hexStr48 `yaml,json:"pubkeys"`
+		Message   hexStr32   `yaml,json:"message"`
+		Signature hexStr96   `yaml,json:"signature"`
 	}
-	Output bool `yaml:"output"` // VALID or INVALID
+	Output bool `yaml,json:"output"` // VALID or INVALID
 }
 
 func TestFastAggregateVerify(t *testing.T) {
-	runTestCases(t, "fast_aggregate_verify/small", func(t *testing.T, getData func(interface{})) {
+	runTestCases(t, "fast_aggregate_verify", func(t *testing.T, getData func(interface{})) {
 		var data fastAggregateVerifyTestCase
 		getData(&data)
 		pubkeys, err := parsePubkeys(data.Input.Pubkeys)
@@ -335,7 +458,7 @@ func (v *hexStr96) UnmarshalText(text []byte) error {
 	return unmarshalHex(v[:], text)
 }
 
-var testDir = "../bls-tests/bls"
+var testDir = "../bls12-381-tests/out/json/bls"
 
 func runTestCases(t *testing.T, path string, runCase func(t *testing.T, getData func(interface{}))) {
 	t.Run(path, func(t *testing.T) {
@@ -346,32 +469,33 @@ func runTestCases(t *testing.T, path string, runCase func(t *testing.T, getData 
 			if path == "." {
 				return nil
 			}
-			// not a dir? skip it
-			if !d.IsDir() {
+			// a dir? exit with warning
+			if d.IsDir() {
+				return fmt.Errorf("unexpected dir: path: %q, name: %q", path, d.Name())
+			}
+			// can't open the file? skip it
+			if err != nil {
 				return nil
 			}
-			// can't open the file/dir? skip it
-			if err != nil {
-				return fs.SkipDir
-			}
-			// each sub-directory is a test-case
-			t.Run(path, func(t *testing.T) {
+			// each file is a test-case
+			name := d.Name()
+			name = name[:len(name)-len(filepath.Ext(name))] // strip extension for pretty test name
+			t.Run(name, func(t *testing.T) {
 				// run call-back to process test-case
 				runCase(t, func(dst interface{}) {
-					p := filepath.Join(d.Name(), "data.yaml")
-					data, err := fs.ReadFile(casesDir, p)
+					data, err := fs.ReadFile(casesDir, path)
 					if err != nil {
-						t.Fatalf("failed to read %q: %v", p, err)
+						t.Fatalf("failed to read %q: %v", path, err)
 						return
 					}
-					if err := yaml.Unmarshal(data, dst); err != nil {
-						t.Fatalf("failed to decode %q: %v", p, err)
+					if err := json.Unmarshal(data, dst); err != nil {
+						t.Fatalf("failed to decode %q: %v", path, err)
 						return
 					}
 				})
 			})
-			// don't recurse into the directory further
-			return fs.SkipDir
+			// keep going through other files in this dir.
+			return nil
 		})
 	})
 }

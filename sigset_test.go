@@ -37,7 +37,7 @@ func prepareSignatureSetTest(t testing.TB, n int) ([]*Pubkey, [][]byte, []*Signa
 	return pubs, msgs, sigs
 }
 
-func TestSignatureSetVerify(t *testing.T) {
+func TestSignatureSetVerifyRandom(t *testing.T) {
 	for _, n := range []int{1, 2, 3, 4, 5, 10, 42, 100, 101} {
 		t.Run(fmt.Sprintf("SignatureSet_%d", n), func(t *testing.T) {
 			pubs, msgs, sigs := prepareSignatureSetTest(t, n)
@@ -50,4 +50,72 @@ func TestSignatureSetVerify(t *testing.T) {
 			}
 		})
 	}
+}
+
+type batchVerifyTestCase struct {
+	Input struct {
+		Pubkey    []hexStr48 `json:"pubkey"`
+		Message   []hexStr   `json:"message"`
+		Signature []hexStr96 `json:"signature"`
+	} `json:"input"`
+	Output bool `json:"output"`
+}
+
+func TestSignatureSetVerify(t *testing.T) {
+	runTestCases(t, "batch_verify", func(t *testing.T, getData func(interface{})) {
+		var data batchVerifyTestCase
+		getData(&data)
+
+		var pubs []*Pubkey
+		var msgs [][]byte
+		var sigs []*Signature
+
+		for _, pubRaw := range data.Input.Pubkey {
+			var pub Pubkey
+			if err := pub.Deserialize((*[48]byte)(&pubRaw)); err != nil {
+				if data.Output {
+					t.Fatalf("expected valid batch verify, but got invalid pubkey %x: %v", pubRaw[:], err)
+				} else {
+					// expected
+					return
+				}
+			}
+			pubs = append(pubs, &pub)
+		}
+		for _, sigRaw := range data.Input.Signature {
+			var sig Signature
+			if err := sig.Deserialize((*[96]byte)(&sigRaw)); err != nil {
+				if data.Output {
+					t.Fatalf("expected valid batch verify, but got invalid signature %x: %v", sigRaw[:], err)
+				} else {
+					// expected
+					return
+				}
+			}
+			sigs = append(sigs, &sig)
+		}
+		for _, msgRaw := range data.Input.Message {
+			msgs = append(msgs, msgRaw)
+		}
+
+		ok, err := SignatureSetVerify(pubs, msgs, sigs)
+		if err != nil {
+			t.Fatal("usage error")
+		}
+		if ok {
+			if data.Output {
+				// expected
+				return
+			} else {
+				t.Fatal("expected invalid batch verify, but accepted batch")
+			}
+		} else {
+			if data.Output {
+				t.Fatal("failed to batch verify, but expected valid batch")
+			} else {
+				// expected
+				return
+			}
+		}
+	})
 }

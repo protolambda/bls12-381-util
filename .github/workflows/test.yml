@@ -15,9 +15,11 @@ jobs:
         uses: actions/cache@v2
         with:
           path: test-vectors
-          restore-keys: bls-test-vectors-${{ hashFiles('.bls-tests-version.txt') }}
+          key: bls-test-vectors-v0.1.0
       - name: Pull test vectors
-        run: make download-tests
+        run: |
+          mkdir -p test-vectors
+          wget https://github.com/ethereum/bls12-381-tests/releases/download/v0.1.0/bls_tests_json.tar.gz -O - | tar -xz -C test-vectors
         if: steps.cache-test-vectors.outputs.cache-hit != 'true'
       - name: Test
         run: go test ./...

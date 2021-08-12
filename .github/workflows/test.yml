@@ -1,0 +1,23 @@
+on: [push, pull_request]
+name: Test
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16.x
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: cache test vectors
+        id: cache-test-vectors
+        uses: actions/cache@v2
+        with:
+          path: test-vectors
+          restore-keys: bls-test-vectors-${{ hashFiles('.bls-tests-version.txt') }}
+      - name: Pull test vectors
+        run: make download-tests
+        if: steps.cache-test-vectors.outputs.cache-hit != 'true'
+      - name: Test
+        run: go test ./...

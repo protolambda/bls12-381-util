@@ -188,10 +188,10 @@ func TestSkToPk(t *testing.T) {
 
 type signTestCase struct {
 	Input struct {
-		Privkey hexStr32 `yaml,json:"privkey"`
-		Message hexStr   `yaml,json:"message"`
+		Privkey hexStr32 `json:"privkey"`
+		Message hexStr   `json:"message"`
 	}
-	Output hexStr `yaml,json:"output"`
+	Output hexStr `json:"output"`
 }
 
 func TestSign(t *testing.T) {
@@ -218,8 +218,8 @@ func TestSign(t *testing.T) {
 }
 
 type aggregateTestCase struct {
-	Input  []hexStr96 `yaml,json:"input"`
-	Output *hexStr96  `yaml,json:"output"`
+	Input  []hexStr96 `json:"input"`
+	Output *hexStr96  `json:"output"`
 }
 
 func TestAggregate(t *testing.T) {
@@ -261,11 +261,11 @@ func TestAggregatePubkeys(t *testing.T) {
 
 type verifyTestCase struct {
 	Input struct {
-		Pubkey    hexStr48 `yaml,json:"pubkey"`
-		Message   hexStr32 `yaml,json:"message"`
-		Signature hexStr96 `yaml,json:"signature"` // the signature to verify against pubkey and message
+		Pubkey    hexStr48 `json:"pubkey"`
+		Message   hexStr32 `json:"message"`
+		Signature hexStr96 `json:"signature"` // the signature to verify against pubkey and message
 	}
-	Output bool `yaml,json:"output"` // VALID or INVALID
+	Output bool `json:"output"` // VALID or INVALID
 }
 
 func TestVerify(t *testing.T) {
@@ -299,11 +299,11 @@ func TestVerify(t *testing.T) {
 
 type aggregateVerifyTestCase struct {
 	Input struct {
-		Pubkeys   []hexStr48 `yaml,json:"pubkeys"`
-		Messages  []hexStr32 `yaml,json:"messages"`
-		Signature hexStr     `yaml,json:"signature"`
+		Pubkeys   []hexStr48 `json:"pubkeys"`
+		Messages  []hexStr32 `json:"messages"`
+		Signature hexStr     `json:"signature"`
 	}
-	Output bool `yaml,json:"output"` // VALID or INVALID
+	Output bool `json:"output"` // VALID or INVALID
 }
 
 func parsePubkeys(input []hexStr48) (pubkeys []*Pubkey, err error) {
@@ -365,11 +365,11 @@ func TestAggregateVerify(t *testing.T) {
 
 type fastAggregateVerifyTestCase struct {
 	Input struct {
-		Pubkeys   []hexStr48 `yaml,json:"pubkeys"`
-		Message   hexStr32   `yaml,json:"message"`
-		Signature hexStr96   `yaml,json:"signature"`
+		Pubkeys   []hexStr48 `json:"pubkeys"`
+		Message   hexStr32   `json:"message"`
+		Signature hexStr96   `json:"signature"`
 	}
-	Output bool `yaml,json:"output"` // VALID or INVALID
+	Output bool `json:"output"` // VALID or INVALID
 }
 
 func TestFastAggregateVerify(t *testing.T) {
@@ -458,7 +458,7 @@ func (v *hexStr96) UnmarshalText(text []byte) error {
 	return unmarshalHex(v[:], text)
 }
 
-var testDir = "../bls12-381-tests/out/json/bls"
+var testDir = "./test-vectors"
 
 func runTestCases(t *testing.T, path string, runCase func(t *testing.T, getData func(interface{}))) {
 	t.Run(path, func(t *testing.T) {

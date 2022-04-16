@@ -325,6 +325,10 @@ func FastAggregateVerify(pubkeys []*Pubkey, message []byte, signature *Signature
 	// 1. aggregate = pubkey_to_point(PK_1)
 	// copy the first pubkey
 	aggregate := *(*kbls.PointG1)(pubkeys[0])
+	// check identity pubkey
+	if (*kbls.G1)(nil).IsZero(&aggregate) {
+		return false
+	}
 	// 2. for i in 2, ..., n:
 	for i := uint64(1); i < n; i++ {
 		// 3. next = pubkey_to_point(PK_i)
@@ -355,11 +359,21 @@ func AggregatePubkeys(pubkeys []*Pubkey) (*Pubkey, error) {
 	// 2. If aggregate is INVALID, return INVALID
 	// part of the Pubkey deserialization
 
+	// check identity pubkey
+	// see https://github.com/ethereum/consensus-specs/issues/2538
+	if (*kbls.G1)(nil).IsZero(&aggregate) {
+		return nil, errors.New("cannot add zero pubkey to aggregate")
+	}
+
 	g1 := kbls.NewG1()
 	// 3. for i in 2, ..., n:
 	for i := 1; i < len(pubkeys); i++ {
 		// 4. next = pubkey_to_point(pubkey_i)
 		next := (*kbls.PointG1)(pubkeys[i])
+		// check identity pubkey
+		if (*kbls.G1)(nil).IsZero(next) {
+			return nil, errors.New("cannot add zero pubkey to aggregate")
+		}
 		// 5. If next is INVALID, return INVALID
 		// part of the Pubkey deserialization
 		// 6. aggregate = aggregate + next

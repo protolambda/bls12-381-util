@@ -54,9 +54,9 @@ func TestSignatureSetVerifyRandom(t *testing.T) {
 
 type batchVerifyTestCase struct {
 	Input struct {
-		Pubkey    []hexStr48 `json:"pubkey"`
-		Message   []hexStr   `json:"message"`
-		Signature []hexStr96 `json:"signature"`
+		Pubkey    []hexStr48 `json:"pubkeys"`
+		Message   []hexStr   `json:"messages"`
+		Signature []hexStr96 `json:"signatures"`
 	} `json:"input"`
 	Output bool `json:"output"`
 }

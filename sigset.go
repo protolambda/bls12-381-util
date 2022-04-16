@@ -57,7 +57,7 @@ func SignatureSetVerify(pubkeys []*Pubkey, messages [][]byte, signatures []*Sign
 		// This only applies to the first worker
 		if offset != 0 {
 			var randScalar kbls.Fr
-			randScalar.FromBytes(rngBuf[offset : offset+64])
+			randScalar.FromBytes(rngBuf[offset : offset+64]) // TODO: 64 bytes avoids modulo bias, but maybe we should just use the random Fr func (more calls to RNG, but less data)
 			offset += 64
 			g2.MulScalar(aggSig, aggSig, &randScalar)
 			g2.MulScalar(msg, msg, &randScalar)

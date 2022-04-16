@@ -403,7 +403,38 @@ func TestFastAggregateVerify(t *testing.T) {
 }
 
 func TestEth2FastAggregateVerify(t *testing.T) {
-	// TODO TestEth2FastAggregateVerify
+	// behaves the same as FastAggregateVerify otherwise
+	runTestCases(t, "fast_aggregate_verify", func(t *testing.T, getData func(interface{})) {
+		var data fastAggregateVerifyTestCase
+		getData(&data)
+		pubkeys, err := parsePubkeys(data.Input.Pubkeys)
+		if err != nil {
+			if !data.Output {
+				// expected failure
+				return
+			} else {
+				t.Fatalf("unexpected failure: %v", err)
+			}
+		}
+		message := data.Input.Message[:]
+		var sig Signature
+		if err := sig.Deserialize((*[96]byte)(&data.Input.Signature)); err != nil {
+			if !data.Output {
+				// expected failure
+				return
+			} else {
+				t.Fatalf("unexpected failure, failed to deserialize signature (%x): %v", data.Input.Signature[:], err)
+			}
+		}
+		// Override test result where Eth2FastAggregateVerify is supposed to be different than FastAggregateVerify
+		if len(pubkeys) == 0 && kbls.NewG2().IsZero((*kbls.PointG2)(&sig)) {
+			data.Output = true
+		}
+		res := Eth2FastAggregateVerify(pubkeys, message, &sig)
+		if res != data.Output {
+			t.Fatalf("expected different output, got %v, expected %v", res, data.Output)
+		}
+	})
 }
 
 type hexStr []byte
